@@ -1,6 +1,8 @@
 import os
 import time
+import pytz
 import shutil
+from datetime import datetime
 import flet
 from flet import (
     ElevatedButton,
@@ -13,9 +15,12 @@ from flet import (
     AlertDialog,
     TextButton,
     MainAxisAlignment,
+    Dropdown,
+    dropdown,
 )
-
-def rename_and_move_files_by_year(folder_path):
+TIMEZONES = pytz.all_timezones
+def rename_and_move_files_by_year(folder_path,selected_timezone):
+    tz = pytz.timezone(selected_timezone)
     # Iterate over all the files in the specified folder
     for filename in os.listdir(folder_path):
         # Get the full file path
@@ -25,13 +30,13 @@ def rename_and_move_files_by_year(folder_path):
         if os.path.isfile(file_path):
             # Get the last modification time of the file
             mod_time = os.path.getmtime(file_path)
-
+            dt = datetime.fromtimestamp(mod_time, tz)
             # Format the modification time as "YYYY-MM-DD-HHhMMmSS"
-            new_name_format = time.strftime("%Y-%m-%d-%Hh%Mm%S", time.localtime(mod_time))
-
+            #new_name_format = time.strftime("%Y-%m-%d-%Hh%Mm%S", time.localtime(mod_time))
+            new_name_format = dt.strftime("%Y-%m-%d-%Hh%Mm%S")
             # Extract the year from the modification time
-            year_folder = time.strftime("%Y", time.localtime(mod_time))
-
+            #year_folder = time.strftime("%Y", time.localtime(mod_time))
+            year_folder = dt.strftime("%Y")
             # Create the year folder if it doesn't exist
             year_folder_path = os.path.join(folder_path, year_folder)
             if not os.path.exists(year_folder_path):
@@ -57,10 +62,16 @@ def rename_and_move_files_by_year(folder_path):
 
 
 def main(page: Page):
+    selected_timezone = Dropdown(
+        label="Select Timezone",
+        options=[dropdown.Option(tz) for tz in TIMEZONES],
+        value="GMT"
+    )
 
     def start_program(e):
 
         folder_path = directory_path.value
+        timezone_choice = selected_timezone.value
         if not folder_path or folder_path=="Cancelled!":
             page.dialog = AlertDialog(title=Text("Error"), content=Text("Please select a folder first!"))
             page.dialog.open = True
@@ -68,7 +79,7 @@ def main(page: Page):
             return
 
         try:
-            rename_and_move_files_by_year(folder_path)
+            rename_and_move_files_by_year(folder_path, timezone_choice)
             page.dialog = AlertDialog(title=Text("Success"),
                                       content=Text("Files have been renamed and moved successfully!"))
             page.dialog.open = True
@@ -124,6 +135,7 @@ def main(page: Page):
                 directory_path,
             ]
         ),
+        Row([selected_timezone]),
         Row(
             [
                 ElevatedButton(
