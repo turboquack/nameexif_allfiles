@@ -14,47 +14,58 @@ from flet import (
     TextButton,
     MainAxisAlignment,
 )
+import exifread
+import datetime
+
+def get_photo_creation_date(file_path):
+    # Open the file in binary read mode
+    with open(file_path, 'rb') as f:
+        # Process the EXIF data to find the original date the photo was taken
+        tags = exifread.process_file(f, stop_tag='EXIF DateTimeOriginal')
+        # Try to get the 'EXIF DateTimeOriginal' tag
+        date_taken = tags.get('EXIF DateTimeOriginal')
+        if date_taken:
+            # Convert the date string from EXIF to a datetime object
+            return datetime.datetime.strptime(str(date_taken), '%Y:%m:%d %H:%M:%S')
+    # Return None if no date was found
+    return None
 
 def rename_and_move_files_by_year(folder_path):
-    # Iterate over all the files in the specified folder
+    # Loop through all files in the specified folder
     for filename in os.listdir(folder_path):
-        # Get the full file path
         file_path = os.path.join(folder_path, filename)
-
-        # Check if it's a file (skip directofries)
+        # Check if it's a file (not a directory)
         if os.path.isfile(file_path):
-            # Get the last modification time of the file
-            mod_time = os.path.getmtime(file_path)
-
-            # Format the modification time as "YYYY-MM-DD-HHhMMmSS"
-            new_name_format = time.strftime("%Y-%m-%d-%Hh%Mm%S", time.localtime(mod_time))
-
-            # Extract the year from the modification time
-            year_folder = time.strftime("%Y", time.localtime(mod_time))
-
-            # Create the year folder if it doesn't exist
+            # Get the photo creation date from EXIF metadata
+            creation_date = get_photo_creation_date(file_path)
+            if not creation_date:
+                print("File without creation date")
+                # Skip the file if no EXIF creation date is found
+                continue
+            # Format the creation date for the new file name
+            new_name_format = creation_date.strftime("%Y-%m-%d-%Hh%Mm%S")
+            # Extract the year to create a year-based subfolder
+            year_folder = creation_date.strftime("%Y")
             year_folder_path = os.path.join(folder_path, year_folder)
+            # Create the year folder if it doesn't exist
             if not os.path.exists(year_folder_path):
                 os.makedirs(year_folder_path)
-
             # Get the file extension
             _, file_extension = os.path.splitext(filename)
-
-            # Create the new file name
+            # Generate the new file name
             new_filename = f"{new_name_format}{file_extension}"
             new_file_path = os.path.join(year_folder_path, new_filename)
 
-            # If the file already exists, append '-1', '-2', etc. until the name is unique
+            # If a file with the same name exists, add a counter to make the name unique
             counter = 1
             while os.path.exists(new_file_path):
                 new_filename = f"{new_name_format}-{counter}{file_extension}"
                 new_file_path = os.path.join(year_folder_path, new_filename)
                 counter += 1
-
-            # Move the file to the year folder with the new name
+            # Move and rename the file to the appropriate year folder
             shutil.move(file_path, new_file_path)
+            # Print a message indicating the file has been moved
             print(f"Renamed and moved: {filename} -> {new_file_path}")
-
 
 def main(page: Page):
 
