@@ -16,6 +16,7 @@ from flet import (
 )
 import exifread
 import datetime
+#from pathlib import Path
 
 def get_photo_creation_date(file_path):
     # Open the file in binary read mode
@@ -30,6 +31,15 @@ def get_photo_creation_date(file_path):
     # Return None if no date was found
     return None
 
+def get_photo_modification_date(file_path):
+    """
+    Return the photo’s modification date as a `datetime.datetime` object.
+    """
+    try:
+        return datetime.datetime.fromtimestamp(os.path.getmtime(file_path))
+    except (FileNotFoundError, OSError):
+        return None
+
 def rename_and_move_files_by_year(folder_path):
     # Loop through all files in the specified folder
     for filename in os.listdir(folder_path):
@@ -39,9 +49,15 @@ def rename_and_move_files_by_year(folder_path):
             # Get the photo creation date from EXIF metadata
             creation_date = get_photo_creation_date(file_path)
             if not creation_date:
-                print("File without creation date")
-                # Skip the file if no EXIF creation date is found
-                continue
+                # Fall back to filesystem modification timestamp
+                creation_date = get_photo_modification_date(file_path)
+                print("File without creation date,trying modification date")
+                if creation_date:
+                    pass
+                else:
+                    print("No usuable date")
+                    continue  # still nothing we can use
+                    # Skip the file if no EXIF creation date is found
             # Format the creation date for the new file name
             new_name_format = creation_date.strftime("%Y-%m-%d-%Hh%Mm%S")
             # Extract the year to create a year-based subfolder
